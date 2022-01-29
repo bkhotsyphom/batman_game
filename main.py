@@ -24,6 +24,10 @@ character = pygame.transform.scale(character_image, (character_width, character_
 
 # GAME OBJECTS
 
+trash_can_image = pygame.image.load(os.path.join("Assets_TestGame", "trashcan.png"))
+
+trash_can = pygame.transform.scale(trash_can_image, (50, 50))
+
 enemy_image = pygame.image.load(os.path.join("Assets_TestGame", "joker2.png"))
 
 enemy_image = pygame.transform.scale(enemy_image, (80, 80))
@@ -58,9 +62,11 @@ joker_shoots = pygame.USEREVENT + 1
 
 player_damage = pygame.USEREVENT + 2
 
+enemy_and_character_collision = pygame.USEREVENT + 3
+
 
 def game_window(character_position, number_of_batarangs, enemy_position, joker_health,
-                number_of_joker_projectiles, player_health):
+                number_of_joker_projectiles, player_health, trash_can_position):
     title_text = TITLE_FONT.render("STOP THE JOKER!", True, WHITE)
 
     joker_health_text = HEALTH_FONT.render("Joker's Health: " + str(joker_health), True, RED)
@@ -76,6 +82,8 @@ def game_window(character_position, number_of_batarangs, enemy_position, joker_h
     DISPLAY.blit(joker_health_text, (475, 95))
 
     DISPLAY.blit(player_health_text, (80, 95))
+
+    DISPLAY.blit(trash_can, (trash_can_position.x, trash_can_position.y))
 
     DISPLAY.blit(character, (character_position.x, character_position.y))
 
@@ -101,7 +109,7 @@ def character_movement(user_key_pressed, character_position):
         character_position.x -= character_speed
 
 
-def batarang_movement(number_of_batarangs, enemy_position):
+def batarang_movement(number_of_batarangs, enemy_position, trash_can_position):
     for batarang_position in number_of_batarangs:
         batarang_position.x += 10
         if enemy_position.colliderect(batarang_position):
@@ -112,22 +120,30 @@ def batarang_movement(number_of_batarangs, enemy_position):
             enemy_position.y = random.randint(140, 500)
         elif batarang_position.x > 750:
             number_of_batarangs.remove(batarang_position)
+        elif batarang_position.colliderect(trash_can_position):
+            number_of_batarangs.remove(batarang_position)
 
 
-def collisions():
-    pass
+def collisions(character_position, enemy_position, trash_can_position):
+    if character_position.colliderect(enemy_position):
+        pygame.event.post(pygame.event.Event(enemy_and_character_collision))
+    if character_position.colliderect(trash_can_position):
+        pygame.event.post(pygame.event.Event(player_damage))
 
 
-def joker_combat(number_of_joker_projectiles, character_position):
+def joker_combat(number_of_joker_projectiles, character_position, trash_can_position):
     for joker_projectile in number_of_joker_projectiles:
         joker_projectile.x -= 12
         if character_position.colliderect(joker_projectile):
             pygame.event.post(pygame.event.Event(player_damage))
             number_of_joker_projectiles.remove(joker_projectile)
+        if character_position.colliderect(trash_can_position):
+            pygame.event.post(pygame.event.Event(player_damage))
+        if joker_projectile.colliderect(trash_can_position):
+            number_of_joker_projectiles.remove(joker_projectile)
 
 
 def main():
-
     player_death_message = GAME_OVER_FONT.render("You Died!", True, BLACK)
 
     game_over_message = GAME_OVER_FONT.render("You Killed The Joker!", True, BLACK)
@@ -135,6 +151,8 @@ def main():
     character_position = pygame.Rect(100, 350, character_width, character_height)
 
     enemy_position = pygame.Rect(550, 350, character_width, character_height)
+
+    trash_can_position = pygame.Rect(233, 315, 40, 40)
 
     joker_health = 10
 
@@ -167,12 +185,22 @@ def main():
             if event.type == player_damage:
                 player_health -= 1
 
+            if event.type == enemy_and_character_collision:
+                player_health -= 1
+
         if joker_health <= 0:
+            joker_health = 0
+            joker_health_text = HEALTH_FONT.render("Joker's Health: " + str(joker_health), True, RED)
+            DISPLAY.blit(joker_health_text, (475, 95))
             DISPLAY.blit(game_over_message, (50, 350))
             pygame.display.update()
             pygame.time.delay(5000)
             break
-        elif player_health <= 0:
+
+        if player_health <= 0:
+            player_health = 0
+            player_health_text = HEALTH_FONT.render("Batman's Health: " + str(player_health), True, RED)
+            DISPLAY.blit(player_health_text, (80, 95))
             DISPLAY.blit(player_death_message, (240, 350))
             pygame.display.update()
             pygame.time.delay(5000)
@@ -180,16 +208,16 @@ def main():
 
         user_key_pressed = pygame.key.get_pressed()
 
-        joker_combat(number_of_joker_projectiles, character_position)
+        joker_combat(number_of_joker_projectiles, character_position, trash_can_position)
 
-        collisions()
+        collisions(character_position, enemy_position, trash_can_position)
 
         character_movement(user_key_pressed, character_position)
 
-        batarang_movement(number_of_batarangs, enemy_position)
+        batarang_movement(number_of_batarangs, enemy_position, trash_can_position)
 
         game_window(character_position, number_of_batarangs, enemy_position, joker_health, number_of_joker_projectiles,
-                    player_health)
+                    player_health, trash_can_position)
 
     main()
 
